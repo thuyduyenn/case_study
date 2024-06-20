@@ -1,0 +1,154 @@
+
+1.
+SELECT 
+    sales.customer_id AS customer_id,
+    SUM(menu.price) AS total_amount
+FROM dannys_diner.sales
+INNER JOIN dannys_diner.menu
+ON menu.product_id = sales.product_id
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id;
+2.
+SELECT 
+   sales.customer_id,
+   COUNT (DISTINCT sales.order_date) AS total_days
+FROM dannys_diner.sales
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id
+3.
+WITH first_item AS (
+    SELECT 
+       sales.customer_id,
+       menu.product_name,
+       ROW_NUMBER() OVER(
+          PARTITION BY sales.customer_id ORDER BY sales.order_date ASC ) AS rank
+       
+    FROM dannys_diner.sales
+    INNER JOIN dannys_diner.menu
+    ON sales.product_id = menu.product_id
+ )
+ SELECT 
+    customer_id,
+    product_name
+ FROM first_item
+ WHERE rank = 1
+4.
+SELECT 
+     menu.product_name,
+     COUNT (sales.product_id) AS total_item
+FROM dannys_diner.sales
+INNER JOIN dannys_diner.menu
+ON menu.product_id = sales.product_id
+GROUP BY menu.product_name
+ORDER BY COUNT (sales.product_id) DESC
+LIMIT 1
+5.
+
+WITH most_popular AS (
+SELECT
+  sales.customer_id,
+  menu.product_name,
+  COUNT(menu.product_id) AS total_count,
+  DENSE_RANK() OVER(
+    PARTITION BY sales.customer_id
+    ORDER BY COUNT(menu.product_id) DESC ) AS rank
+FROM dannys_diner.menu
+INNER JOIN dannys_diner.sales
+ON menu.product_id = sales.product_id
+GROUP BY sales.customer_id, menu.product_name
+)
+SELECT 
+   customer_id,
+   product_name,
+   total_count
+FROM most_popular
+WHERE rank = 1
+6.
+WITH firt_item AS (
+  SELECT 
+      sales.customer_id,
+      sales.product_id,
+      ROW_NUMBER() OVER (
+         PARTITION BY sales.customer_id ORDER BY sales.order_date ) AS rank
+  FROM dannys_diner.members
+  INNER JOIN dannys_diner.sales
+  ON sales.customer_id = members.customer_id
+  AND sales.order_date > members.join_date
+ )
+ 
+ SELECT 
+    firt_item.customer_id,
+    menu.product_name
+ FROM firt_item
+ INNER JOIN dannys_diner.menu
+ ON menu.product_id = firt_item.product_id
+ WHERE rank = 1
+ ORDER BY firt_item.customer_id
+7.
+WITH last_item_bofore AS (
+  SELECT 
+     sales.customer_id,
+     sales.product_id,
+     ROW_NUMBER() OVER(
+     PARTITION BY sales.customer_id ORDER BY sales.order_date DESC) AS rank
+  FROM dannys_diner.members
+  INNER JOIN dannys_diner.sales
+  ON sales.customer_id = members.customer_id
+  AND members.join_date > sales.order_date
+  )
+  
+  SELECT 
+      customer_id,
+      menu.product_name
+  FROM last_item_bofore
+  INNER JOIN dannys_diner.menu
+  ON menu.product_id = last_item_bofore.product_id
+  WHERE rank = 1
+  ORDER BY last_item_bofore.customer_id
+8.
+ SELECT 
+     sales.customer_id,
+     COUNT (sales.product_id) AS total_item,
+     SUM (menu.price) AS total_amount
+  FROM dannys_diner.sales
+  INNER JOIN dannys_diner.menu 
+  ON menu.product_id = sales.product_id
+  INNER JOIN dannys_diner.members
+  ON sales.customer_id = members.customer_id
+  AND members.join_date > sales.order_date
+  GROUP BY sales.customer_id
+  ORDER BY sales.customer_id
+9.
+WITH select_point AS (
+  SELECT
+     menu.product_id,
+     CASE 
+       WHEN menu.product_name LIKE '%sushi%' THEN 2 * 10 * price
+       ELSE 10 * price END AS point
+  FROM dannys_diner.menu
+)
+
+SELECT 
+    sales.customer_id,
+    SUM (select_point.point) AS total_point
+FROM select_point
+INNER JOIN dannys_diner.sales
+ON sales.product_id = select_point.product_id
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id
+10.
+  SELECT
+    sales.customer_id,
+    SUM (CASE 
+        WHEN product_name LIKE '%sushi%' THEN 2 * 10 * price
+        WHEN sales.order_date BETWEEN members.join_date AND members.join_date + 6 THEN 2 * 10 * price
+        ELSE price * 10 END ) AS total_point
+  FROM dannys_diner.sales
+  INNER JOIN dannys_diner.members
+  ON members.customer_id = sales.customer_id
+  AND sales.order_date < '2021-01-31'::DATE
+  INNER JOIN dannys_diner.menu
+  ON sales.product_id = menu.product_id
+GROUP BY sales.customer_id
+ORDER BY sales.customer_id
+
